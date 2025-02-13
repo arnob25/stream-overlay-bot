@@ -49,11 +49,6 @@ meeting.on("participant-joined", (participant) => {
 });
 
 // Get published data from the streamer
-meeting.on("meeting-joined", () => {
-  textDiv.style.display = "none";
-
-  meeting.pubSub.subscribe("UPDATE_SCOREBOARD", updateScoreboard);
-});
 
 // TODO see if we need to clean up after the tab closes
 // Cleanup after leaving the stream
@@ -146,6 +141,8 @@ function setMediaTrack(stream, participant, isLocal) {
 
 function updateScoreboard({ message }) {
   const payload = JSON.parse(message);
+  console.log(payload);
+
   document.getElementById("teamName").innerText = payload.team
     .slice(0, 3)
     .toUpperCase();
@@ -162,6 +159,36 @@ function updateScoreboard({ message }) {
   document.getElementById("againstScore").innerText = payload.againstScore;
   document.getElementById("gameStatus").innerText = payload.status;
 }
+
+// Create a new WebSocket client
+const client = new WebSocket("ws://localhost:3000/ws");
+
+function setupWebSocket() {
+  client.onopen = () => console.log("Connected to server");
+
+  client.onclose = () => {
+    console.log("Disconnected from server, reconnecting...");
+    setTimeout(() => {
+      client = new WebSocket("ws://localhost:3000/ws");
+      setupWebSocket();
+    }, 1000);
+  };
+
+  client.onerror = (error) => console.error("WebSocket Error:", error);
+}
+
+setupWebSocket();
+
+client.onmessage = (event) => {
+  // Parse the incoming message
+  const data = JSON.parse(event.data);
+
+  // Check if the event type is UPDATE_SCOREBOARD
+  if (data.event === "UPDATE_SCOREBOARD") {
+    // Call updateScoreboard with the payload wrapped in an object with a message property
+    updateScoreboard({ message: JSON.stringify(data.payload) });
+  }
+};
 
 const findIcon = (item) => {
   switch (item) {
